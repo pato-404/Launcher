@@ -48,12 +48,15 @@ def draw_search_box(surf, rect, base_color, text, font, text_color):
 def cargar_juegos():
     games_folder = "GAMES"
     juegos = []
+    
     if not os.path.exists(games_folder):
         os.makedirs(games_folder)
+    
     for archivo in os.listdir(games_folder):
         if archivo.endswith(".zip"):
             nombre_juego = os.path.splitext(archivo)[0]
             juegos.append({"nombre": nombre_juego, "archivo_zip": archivo})
+    
     return juegos
 
 def obtener_version_desde_txt(path):
@@ -92,6 +95,7 @@ def hay_actualizacion(juego):
     carpeta_local = os.path.join(escritorio, juego["nombre"])
     version_local = obtener_version_desde_txt(os.path.join(carpeta_local, "version.txt"))
     version_zip = obtener_version_zip(os.path.join("GAMES", juego["archivo_zip"]))
+
     try:
         fecha_local = parse_fecha(version_local)
         fecha_zip = parse_fecha(version_zip)
@@ -103,7 +107,9 @@ def hay_actualizacion(juego):
 def actualizar_version_txt(juego):
     escritorio = os.path.join(os.path.expanduser("~"), "Desktop")
     carpeta_local = os.path.join(escritorio, juego["nombre"])
+    
     version_zip = obtener_version_zip(os.path.join("GAMES", juego["archivo_zip"]))
+    
     version_path = os.path.join(carpeta_local, "version.txt")
     try:
         with open(version_path, "w") as f:
@@ -116,11 +122,14 @@ def instalar_juego(juego):
     juego_zip = os.path.join(games_folder, f"{juego['nombre']}.zip")
     escritorio = os.path.join(os.path.expanduser("~"), "Desktop")
     carpeta_destino = os.path.join(escritorio, juego["nombre"])
+
     if os.path.exists(carpeta_destino):
         shutil.rmtree(carpeta_destino)
     os.makedirs(carpeta_destino)
+
     with zipfile.ZipFile(juego_zip, 'r') as zip_ref:
         zip_ref.extractall(carpeta_destino)
+
     contenido = os.listdir(carpeta_destino)
     if len(contenido) == 1:
         subcarpeta = os.path.join(carpeta_destino, contenido[0])
@@ -128,6 +137,7 @@ def instalar_juego(juego):
             for item in os.listdir(subcarpeta):
                 shutil.move(os.path.join(subcarpeta, item), carpeta_destino)
             os.rmdir(subcarpeta)
+
     actualizar_version_txt(juego)
 
 def ejecutar_juego(juego):
@@ -139,73 +149,49 @@ def ejecutar_juego(juego):
     else:
         print(f"No se encontró inicio.py en {ruta_juego}")
 
-def gestionar_panel_visible(panel, estado):
-    panel["visible"] = estado
-
-def mostrar_panel_traductor():
-    panel_rect = pygame.Rect(220, 100, 600, 400)  # Definir el panel
-    pygame.draw.rect(screen, COLORS['panel_fondo'], panel_rect)
-    txt_traductor = fuente.render("Archivos de Traductor", True, COLORS['texto'])
-    screen.blit(txt_traductor, (panel_rect.x + 20, panel_rect.y + 20))
-
-    y_offset = 60  # Comenzamos después del título
-    btns = []
-    margen_vertical = 10  # Espacio entre botones
-    margen_horizontal = 20  # Espacio horizontal
-
-    try:
-        archivos_traductor = [f for f in os.listdir('traducir') if f.endswith('.qp')]
-    except FileNotFoundError:
-        archivos_traductor = []
-
-    if archivos_traductor:
-        for archivo in archivos_traductor:
-            # Botón con el texto del archivo
-            btn_archivo = pygame.Rect(panel_rect.x + margen_horizontal, y_offset, panel_rect.width - 2 * margen_horizontal, 40)
-            draw_button(screen, btn_archivo, archivo, COLORS['boton'], COLORS['boton_hover'], fuente)
-            btns.append((btn_archivo, archivo))
-            y_offset += btn_archivo.height + margen_vertical  # Ajuste la posición para el siguiente botón
-
-    return btns
-
 def main_menu():
-    buscador_rect = pygame.Rect(60, 20, 920, 40)
+    buscador_rect = pygame.Rect(20, 20, 960, 40)
     texto_buscador = ""
     juegos_por_fila = 4
     btn_width = 140
     btn_height = 140
     margen = 20
 
-    boton_hamburguesa_rect = pygame.Rect(10, 20, 60, 45)
-    menu_lateral_visible = False
+    def filtrar_juegos(buscador):
+        return [juego for juego in juegos if buscador.lower() in juego["nombre"].lower()]
 
-    btn_config = pygame.Rect(10, 80, 180, 50)
-    btn_traductor = pygame.Rect(10, 140, 180, 50)
+    def mostrar_panel_juego(juego):
+        panel_rect = pygame.Rect(100, 100, 800, 500)
+        pygame.draw.rect(screen, COLORS['panel_fondo'], panel_rect)
+        texto_titulo = fuente.render(juego["nombre"], True, COLORS['texto'])
+        screen.blit(texto_titulo, (panel_rect.x + 10, panel_rect.y + 10))
 
-    panel_config = {"visible": False}
-    panel_traductor = {"visible": False}
-    panel_visible = {"visible": False}
+        btn_jugar = pygame.Rect(panel_rect.x + 50, panel_rect.y + 150, 200, 50)
+        btn_instalar = pygame.Rect(panel_rect.x + 50, panel_rect.y + 220, 200, 50)
+        btn_actualizar = pygame.Rect(panel_rect.x + 50, panel_rect.y + 290, 200, 50)
+        btn_cerrar = pygame.Rect(panel_rect.x + panel_rect.width - 60, panel_rect.y + 10, 50, 40)
+
+        draw_button(screen, btn_jugar, "Jugar", COLORS['boton'], COLORS['boton_hover'], fuente)
+        draw_button(screen, btn_instalar, "Instalar", COLORS['boton'], COLORS['boton_hover'], fuente)
+
+        actualizacion_disponible = hay_actualizacion(juego)
+        draw_button(screen, btn_actualizar, "Actualizar", COLORS['boton'] if actualizacion_disponible else COLORS['boton_disabled'],
+                    COLORS['boton_hover'], fuente, enabled=actualizacion_disponible)
+
+        draw_button(screen, btn_cerrar, "X", COLORS['boton'], COLORS['boton_hover'], fuente)
+
+        return btn_jugar, btn_instalar, btn_actualizar, btn_cerrar, actualizacion_disponible
+
+    panel_visible = False
     juego_seleccionado = None
-
-    btn_archivos = []
-
-    juegos = cargar_juegos()
 
     while True:
         screen.fill(COLORS['fondo'])
-
-        if menu_lateral_visible:
-            panel_lateral = pygame.Rect(0, 0, 200, ALTO)
-            pygame.draw.rect(screen, COLORS['panel_fondo'], panel_lateral)
-            draw_button(screen, btn_config, "Config", COLORS['boton'], COLORS['boton_hover'], fuente)
-            draw_button(screen, btn_traductor, "Traductor", COLORS['boton'], COLORS['boton_hover'], fuente)
-
-        draw_button(screen, boton_hamburguesa_rect, "☰", COLORS['boton'], COLORS['boton_hover'], fuente)
         draw_search_box(screen, buscador_rect, COLORS['buscador'], texto_buscador, fuente_buscador, COLORS['texto_buscador'])
 
-        juegos_filtrados = [juego for juego in juegos if texto_buscador.lower() in juego["nombre"].lower()]
+        juegos_filtrados = filtrar_juegos(texto_buscador)
         y_offset = 80
-        x_offset = 60 if not menu_lateral_visible else 220
+        x_offset = 20
         botones_juegos = []
 
         for i, juego in enumerate(juegos_filtrados):
@@ -214,15 +200,11 @@ def main_menu():
             botones_juegos.append((btn_juego, juego))
             x_offset += btn_width + margen
             if (i + 1) % juegos_por_fila == 0:
-                x_offset = 60 if not menu_lateral_visible else 220
+                x_offset = 20
                 y_offset += btn_height + margen
 
-        if panel_visible["visible"]:
-            # Panel del juego seleccionado
-            pass
-
-        if panel_traductor["visible"]:
-            btn_archivos = mostrar_panel_traductor()
+        if panel_visible:
+            btn_jugar, btn_instalar, btn_actualizar, btn_cerrar, actualizar = mostrar_panel_juego(juego_seleccionado)
 
         for e in pygame.event.get():
             if e.type == pygame.QUIT:
@@ -230,20 +212,20 @@ def main_menu():
                 sys.exit()
 
             if e.type == pygame.MOUSEBUTTONDOWN:
-                if boton_hamburguesa_rect.collidepoint(e.pos):
-                    menu_lateral_visible = not menu_lateral_visible
-                if btn_config.collidepoint(e.pos):
-                    gestionar_panel_visible(panel_config, True)
-                if btn_traductor.collidepoint(e.pos):
-                    gestionar_panel_visible(panel_traductor, True)
-                for btn_juego, juego in botones_juegos:
-                    if btn_juego.collidepoint(e.pos):
-                        juego_seleccionado = juego
-                        gestionar_panel_visible(panel_visible, True)
-                if panel_traductor["visible"]:
-                    for btn_archivo, archivo in btn_archivos:
-                        if btn_archivo.collidepoint(e.pos):
-                            print(f"Has seleccionado el archivo: {archivo}")
+                if not panel_visible:
+                    for btn_juego, juego in botones_juegos:
+                        if btn_juego.collidepoint(e.pos):
+                            juego_seleccionado = juego
+                            panel_visible = True
+                else:
+                    if btn_jugar.collidepoint(e.pos):
+                        ejecutar_juego(juego_seleccionado)
+                    elif btn_instalar.collidepoint(e.pos):
+                        instalar_juego(juego_seleccionado)
+                    elif btn_actualizar.collidepoint(e.pos) and actualizar:
+                        instalar_juego(juego_seleccionado)
+                    elif btn_cerrar.collidepoint(e.pos):
+                        panel_visible = False
 
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_BACKSPACE:
@@ -251,7 +233,8 @@ def main_menu():
                 else:
                     texto_buscador += e.unicode
 
-        pygame.display.update()
+        pygame.display.flip()
 
-# Cargar juegos y lanzar el menú principal
-main_menu()
+if __name__ == '__main__':
+    juegos = cargar_juegos()
+    main_menu()
